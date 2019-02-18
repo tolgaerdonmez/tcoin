@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block title %}
+    Block #{{block.index}} | TCoin
+{% endblock title %}
+{% block body %}
+    <h3>Block #{{block.index}}</h3>
+    <hr>
+    <p>Index: {{block.index}}</p>
+    <p>Hash: {{block.hash}}</p>
+    {% if block.previous_hash == '0' %}
+        <p>Previous Hash: <a href="#">{{block.previous_hash}}</a></p>
+    {% else %}
+        <p>Previous Hash: <a href="/block/{{block['index']-1}}">{{block.previous_hash}}</a></p>
+    {% endif %}
+    <p>Type: {{block.type}}</p>
+    <p>Timestamp: {{block.timestamp}}</p>
+    <p>Proof: {{block.proof}}</p>
+    <p>
+    Nodes:
+    {% for node in block.nodes %}
+    {{node}}
+    {% endfor %}
+    </p>
+
+    {% if block.type == 'transaction_block' %}
+        <p>Total Transactions: {{block.height}}</p>
+        <hr>
+        <p><strong>Transactions:</strong></p>
+        <table class="table table-hover table-light">
+            <thead>
+                <th>Receiver</th>
+                <th>Sender</th>
+                <th>Amount (TCoin)</th>
+            </thead>
+            <tbody>
+            {% for tran in block.transactions %}
+                <tr>
+                    <td>{{tran['receiver']}}</td>
+                    <td>{{tran['sender']}}</td>
+                    <td>{{tran['amount']}} TC</td>
+                </tr>
+            {% endfor %}
+            
+            </tbody>
+        </table>
+    {% else %}
+    <p><i>No Transactions</i></p>
+    {% endif %}
+    
+{% endblock body %}

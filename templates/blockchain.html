@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Blockchain | TCoin
+{% endblock title %}
+
+{% block div_class %}
+class = "" style = "margin-left:100px;margin-right:100px"
+{% endblock div_class %}
+
+{% block body %}
+<h3>TCoin Blockchain</h3>
+<table class="table table-hover table-light mr-auto">
+    <thead>
+        <th>Index</th>
+        <th>Hash</th>
+        <th>Previous Hash</th>
+        <th>Proof</th>
+        <th>Total Transactions</th>
+    </thead>
+    <tbody>
+    {% for block in chain %}
+        <tr>
+            <td><a href="/block/{{block.index}}">Block #{{block.index}}</a></td>
+            <td>{{block.hash}}</td>
+            <td>{{block.previous_hash}}</td>
+            <td>{{block.proof}}</td>
+            <td>{{block.height}}</td>
+        </tr>  
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock body %}

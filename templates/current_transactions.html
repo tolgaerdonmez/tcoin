@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Current Transactions | TCoin
+{% endblock title %}
+
+{% block body %}
+<p><strong>Current Transactions:</strong></p>
+        <table class="table table-hover table-light">
+            <thead>
+                <th>Receiver</th>
+                <th>Sender</th>
+                <th>Amount (TCoin)</th>
+            </thead>
+            <tbody>
+            {% if transactions != [] %}
+                {% for tran in transactions %}
+                <tr>
+                    <td>{{tran['receiver']}}</td>
+                    <td>{{tran['sender']}}</td>
+                    <td>{{tran['amount']}} TC</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <p><i>No Current Transactions...</i></p>
+            {% endif %}
+            </tbody>
+        </table>
+
+{% endblock body %}
