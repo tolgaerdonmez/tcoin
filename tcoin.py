@@ -303,5 +303,5 @@ def show_network():
 
 
 if __name__ == '__main__':
-    app.run(debug=True,host=host,port=port)
+    app.run(debug=False,host=host,port=port)
 
