@@ -16,9 +16,15 @@ import os
 #Getting the config.json file
 config = None
 config_template = {"protocol_name":"TCOIN_BLOCKCHAIN_NETWORK","miner":"your_miner_adress_or_name","secret_key":"TCOIN_BLOCKCHAIN_NETWORK","node_address":"null"}
+# config = {"protocol_name":"TCOIN_BLOCKCHAIN_NETWORK","miner":"your_miner_adress_or_name","secret_key":"TCOIN_BLOCKCHAIN_NETWORK","node_address":"null"}
+
 config_path = "config.json" #sys.argv[3]
-host = sys.argv[1]
-port = sys.argv[2]
+try:
+    host = sys.argv[1]
+    port = sys.argv[2]
+except:
+    host = 'localhost'
+    port = 5000
 
 def save_config():
     with open(config_path,'w') as file:  
@@ -73,6 +79,16 @@ def node_required(f):
             return f(*args, **kwargs)
     return decorated_function
 
+def check(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not blockchain.is_chain_valid(blockchain.chain):
+            flash("Invalid blockchain oops...","warning")
+            return redirect(url_for("index"))
+        else:
+            return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/cur_transactions', methods = ["GET"])
 def current_transactions():
     transactions = blockchain.transactions
@@ -98,6 +114,7 @@ def mine_block():
     return redirect(f"block/{block.index}")
 
 @app.route('/get_chain', methods = ['GET'])
+@check
 def get_chain():
     response = {'chain': blockchain.chain_to_dict(),
                 'length': len(blockchain.chain)}
@@ -209,7 +226,7 @@ def send_tcoin():
 
 @app.route("/is_node_active", methods = ["GET"])
 def is_node_active():
-    return jsonify("True"),200
+    return jsonify(config['protocol_name']),200
 
 @app.route("/join_network", methods = ["GET","POST"])
 def join_network():
@@ -218,13 +235,14 @@ def join_network():
         return render_template("join_network.html",form = form)
     else:
         try:
-            get = requests.get(form.address.data)
+            get = requests.get('http://'+urlparse(form.address.data).netloc+'/is_node_active')
             if urlparse(form.address.data).netloc.split(":")[0] == "localhost":
                 raise TypeError
             if urlparse(form.address.data).netloc in blockchain.nodes:
                 flash("You've already joined the network !","warning")
                 return redirect(url_for("index"))
-            if get.status_code == 200:
+            
+            if get.status_code == 200 and json.loads(get.text) == config['protocol_name']:
                 blockchain.add_node(form.address.data)
                 # setting the node address in config
                 config['node_address'] = urlparse(form.address.data).netloc
@@ -260,19 +278,6 @@ def request_zip():
             file_list.append('./templates/includes')
             for file in filenames:
                 file_list.append("./templates/includes/" + file)
-    # for dirpath,_,filenames in os.walk(base_path):
-    #     if dirpath == '.':
-    #         for file in filenames: 
-    #             if file != "config.json":
-    #                 file_list.append("./" + file)
-    #     elif dirpath == ".\\templates":
-    #         file_list.append('./templates')
-    #         for file in filenames:
-    #             file_list.append("./templates/" + file)
-    #     elif dirpath == ".\\templates\\includes":
-    #         file_list.append('./templates/includes')
-    #         for file in filenames:
-    #             file_list.append("./templates/includes/" + file)
 
     data = BytesIO()
     with ZipFile(data, mode='w') as z:
@@ -294,5 +299,5 @@ def show_network():
 
 
 if __name__ == '__main__':
-    app.run(debug=False,host=host,port=port)
+    app.run(debug=True,host=host,port=port)
 

@@ -33,7 +33,7 @@ class Block():
         self.nodes = nodes
         self.type = type# transaction_block save_block genesis_block
         self.protocol_name = protocol_name
-    
+
     def to_dict(self):
         block_dic = {
             'index':self.index,
@@ -58,6 +58,11 @@ class Block():
         encoded_block = (str(self.index) + self.timestamp + self.previous_hash + str(self.transactions)).encode()
         hash = hashlib.sha256(encoded_block).hexdigest()
         return hash
+
+    def check_type(self):
+        types = {"genesis_block":1,"transaction_block":1,"save_block":1}
+        return not (self.type in types)
+            
 
 class Blockchain:
 
@@ -87,9 +92,13 @@ class Blockchain:
                 else:
                     raise FileNotFoundError
         except FileNotFoundError:
-            # creating the genesis block 
-            # no transaction
-            self.create_block(index = 0, proof= 1, previous_hash='0', type = 'genesis_block')
+            # if the blockchain is not alone replace with a valid chain in the network
+            if len(self.nodes) > 1:
+                self.replace_chain()
+            else:
+                # creating the genesis block 
+                # no transaction
+                self.create_block(index = 0, proof= 1, previous_hash='0', type = 'genesis_block')
 
     def dict_to_chain(self,dict_chain):
         class_chain = []
@@ -148,12 +157,16 @@ class Blockchain:
         return proof
 
     def is_chain_valid(self,chain):
+        print('checking///')
         index = 1
         while index < len(chain):
             previous_block = chain[index-1]
             current_block = chain[index]
             if current_block.previous_hash != previous_block.hash:
                 return False
+            if current_block.check_type():
+                return False
+            #checking the proof is valid
             hash_operation = hashlib.sha256(str(current_block.hash + str(current_block.proof)).encode()).hexdigest()
             if hash_operation[:len(self.difficulty)] != self.difficulty:
                 return False
