@@ -95,6 +95,7 @@ def current_transactions():
     return render_template("current_transactions.html",transactions = transactions)
 
 @app.route('/mine_block', methods = ['GET'])
+@check
 @node_required
 def mine_block():
     if blockchain.transactions == []:
@@ -146,6 +147,7 @@ def is_valid():
     return  jsonify(response), 200
 
 @app.route('/add_transaction', methods = ['POST'])
+@check
 @node_required
 def add_transaction():
     json = request.get_json()
@@ -205,6 +207,7 @@ def index():
     return render_template("index.html")
 
 @app.route("/send_tcoin", methods = ["GET","POST"])
+@check
 @node_required
 def send_tcoin():
     form = forms.AddTransaction(request.form)
@@ -262,6 +265,7 @@ def join_network():
             return redirect(url_for("join_network"))
 
 @app.route('/download-protocol')
+@check
 def request_zip():
     base_path = Path('./')
     file_list = []
