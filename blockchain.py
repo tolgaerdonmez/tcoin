@@ -1,4 +1,3 @@
-#better_Tx's
 import datetime
 import hashlib
 import json
@@ -174,10 +173,8 @@ class Blockchain:
             index+=1
         return True
 
-    def add_transaction(self, sender, receiver, amount):
-        self.transactions.append({'sender':sender,
-                                  'receiver': receiver,
-                                  'amount': amount})
+    def add_transaction(self, tx):
+        self.transactions.append(tx)
         previous_block = self.last_block()
         return previous_block.index + 1
 

@@ -9,8 +9,9 @@ Send TCoin | TCoin
 {% from "includes/formhelpers.html" import render_field %}
 <form method = "post">
     {{ render_field(form.sender, class = "form-control") }}
+    {{ render_field(form.input, class = "form-control") }}
     {{ render_field(form.receiver, class = "form-control") }}
-    {{ render_field(form.amount, class = "form-control") }}
+    {{ render_field(form.output, class = "form-control") }}
     <button type="submit" class="btn btn-success">Send</button>
 </form>
 {% endblock body %}
