@@ -4,7 +4,8 @@ import json
 import requests
 from urllib.parse import urlparse    
 import time
-
+from transaction import Transaction
+from wallet import Wallet
 def timeit(method):
     def timed(*args, **kw):
         ts = time.time()
@@ -33,7 +34,6 @@ class Block():
         self.nodes = nodes
         self.type = type# transaction_block save_block genesis_block
         self.protocol_name = protocol_name
-
     def to_dict(self):
         block_dic = {
             'index':self.index,
@@ -66,9 +66,11 @@ class Block():
 
 class Blockchain:
 
-    def __init__(self,protocol_name = "undefined"):
-        self.protocol_name = protocol_name
+    def __init__(self,config = None):
+        self.config = config
+        self.protocol_name = config['protocol_name']
         self.chain = []
+        # current transactions / not mined ones 
         self.transactions = []
         self.nodes = set()
         self.difficulty = '0000'
@@ -97,7 +99,10 @@ class Blockchain:
                 self.replace_chain()
             else:
                 # creating the genesis block 
-                # no transaction
+                miner_public = Wallet(self.config['miner'].encode()).public_key
+                genesis_tx = Transaction(sender = None,input = 100, receiver = miner_public ,output = 100,sig = None, genesis_tx = True)
+                self.add_transaction(genesis_tx)
+                print(genesis_tx.to_dict())
                 self.create_block(index = 0, proof= 1, previous_hash='0', type = 'genesis_block')
 
     def dict_to_chain(self,dict_chain):
@@ -134,10 +139,12 @@ class Blockchain:
             type = type,
             protocol_name = self.protocol_name
             )
+        # clearing the current transactions
         self.transactions = []
+        # calculating the new block's proof
         new_block.proof = self.proof_of_work(new_block)
         self.chain.append(new_block)
-
+        # saving the current chain to the json file
         self.save_chain_to_json()
         return new_block
 
@@ -174,7 +181,9 @@ class Blockchain:
         return True
 
     def add_transaction(self, tx):
-        self.transactions.append(tx)
+        self.transactions.append(tx.to_dict())
+        if len(self.chain) == 0:
+            return True
         previous_block = self.last_block()
         return previous_block.index + 1
 
