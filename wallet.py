@@ -8,13 +8,13 @@ import hashlib
 
 class Wallet():
 
-    def __init__(self, load = None):
+    def __init__(self, load = None, chain = None):
         self.coins = None
         if not load:
             self.private_key, self.public_key, self.private_key_ser, self.public_key_ser = self.__generate_keys()
         else:
             self.private_key, self.public_key, self.private_key_ser, self.public_key_ser = self.__load_keys(load)
-
+        self.chain = chain
         # self.public_key_text = str(self.public_key_ser, 'utf-8').replace("-----BEGIN PUBLIC KEY-----","").replace("-----END PUBLIC KEY-----","")
         # self.private_key_text = str(self.private_key_ser, 'utf-8').replace("-----BEGIN PRIVATE KEY-----","").replace("-----END PRIVATE KEY-----","")
 
@@ -64,14 +64,15 @@ class Wallet():
                 if tx['receiver'] == pu:
                     plus.append(tx['output'])
         total = sum(plus) - sum(minus)
-        print(total)
-        print(plus)
         return total
 
-    @staticmethod
-    def sign(message, private):
+    def sign(self, message, chain):
+        tx_input = message[0][1]
+        # if the wallet doesn't have the needed amount of coins
+        if self.calculate_coins(chain) - tx_input < 0:
+            return None, False
         message = bytes(str(message), 'utf-8')
-        sig = private.sign(
+        sig = self.private_key.sign(
             message,
             padding.PSS(
                 mgf=padding.MGF1(hashes.SHA256()),
@@ -79,7 +80,7 @@ class Wallet():
             ),
             hashes.SHA256()
         )
-        return sig
+        return sig, True
 
     @staticmethod
     def verify(message, sig, pu_ser):

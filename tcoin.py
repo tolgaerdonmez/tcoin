@@ -174,7 +174,7 @@ def add_transaction():
 
     #creating new transaction
     new_tx = Transaction(cur_wallet.public_key, json['input'], miner_wallet.public_key, json['output'])
-    new_tx.sign(cur_wallet.private_key)
+    new_tx.sign(cur_wallet)
     index = blockchain.add_transaction(new_tx)
 
 
@@ -246,14 +246,16 @@ def send_tcoin():
 
         # form.output.data is the transaction fee so
         output_receiver = form.input.data # this is the coin that receiver gets
+
         # sender is the current wallet user >> get the receiver public key from the form
         addr_join = ("\n" + form.receiver.data.replace(" ","\n") + "\n")
         addr_join = Wallet.join_ser_text('public',addr_join)
         receiver_address = Wallet.load_pu(addr_join.encode()) # getting the receiver public key
         new_tx = Transaction(cur_wallet.public_key, input_sender, receiver_address, output_receiver)
-
-        new_tx.sign(cur_wallet.private_key)
-
+        tx_signed = new_tx.sign(cur_wallet) # first checks the balance if there's enough balance >> signs the tx
+        if not tx_signed:
+            flash(f'Not enough coins to send !','warning')
+            return redirect("/send_tcoin")
         index = blockchain.add_transaction(new_tx)
         # broadcasting the new transaction to other transaction pools on nodes
         # new_transaction = [form.sender.data,form.receiver.data,form.amount.data]
@@ -307,10 +309,10 @@ def wallet():
         # looking for an existing wallet
         with open("wallet.dat","rb") as file:
             load_w = pickle.load(file)
-            w = Wallet(load_w)
+            w = Wallet(load = load_w,chain = blockchain.chain)
     except FileNotFoundError:
         # creating new wallet
-        w = Wallet()
+        w = Wallet(chain = blockchain.chain)
         with open("wallet.dat","wb") as file:
             pickle.dump(w.private_key_ser,file)
     # Session['wallet'] = w.private_key_ser
@@ -318,17 +320,17 @@ def wallet():
     cur_wallet = w
     # calculating the coins of the user
     w.coins = w.calculate_coins(blockchain.chain)
-    return render_template("wallet.html",wallet = w)
+    return render_template("wallet.html",balance = w.coins,public_key = Wallet.get_pu_ser(w.public_key))
 
 @app.route("/wallet_login_miner", methods = ["GET"])
 @check
 def wallet_miner():
-    w = Wallet(config['miner'].encode())
+    w = Wallet(load = config['miner'].encode(),chain = blockchain.chain)
     global cur_wallet
     cur_wallet = w
     # calculating the coins of the user
     w.coins = w.calculate_coins(blockchain.chain)
-    return render_template("wallet.html",wallet = w)
+    return render_template("wallet.html",balance = w.coins,public_key = Wallet.get_pu_ser(w.public_key))
 
 @app.route('/download-protocol')
 @check
@@ -366,10 +368,6 @@ def request_zip():
 def show_network():
     nodes = blockchain.nodes
     return render_template("network.html",nodes = nodes)
-
-@app.route('/free_coin')
-def free_coin():
-    pass
 
 if __name__ == '__main__':
     app.run(debug=False,host=host,port=port)

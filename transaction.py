@@ -10,8 +10,13 @@ class Transaction():
         #default is None
         self.sig = sig
         self.genesis_tx = genesis_tx
-    def sign(self, sender_pr):
-        self.sig = Wallet.sign(self.__gather(),sender_pr)
+
+    def sign(self, wallet):
+        sig, is_signed = wallet.sign(self.__gather(), wallet.chain)
+        if not is_signed:
+            return False
+        self.sig = sig
+        return True
 
     def __gather(self):
         return [self.input,self.output]
@@ -23,7 +28,7 @@ class Transaction():
             dict = {'sender':self.sender,
                 'input':self.input[1],
                 'receiver': receiver,
-                'output':self.input[1],
+                'output':self.output[1],
                 'sig':self.sig
                 }
             return dict 
@@ -33,7 +38,7 @@ class Transaction():
         dict = {'sender':sender,
                 'input':self.input[1],
                 'receiver': receiver,
-                'output':self.input[1],
+                'output':self.output[1],
                 'sig':sig
                 }
         return dict
