@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block title %}
+TCOIN | Your Wallet
+{% endblock title %}
+{% block body %}
+<h1>Your Wallet:</h1>
+<hr>
+<h3><strong>Balance:</strong> {{balance}}</h3>
+<h3><strong>Your Public Address:</strong> {{public_key[1]}}</h3>
+{% endblock body %} 

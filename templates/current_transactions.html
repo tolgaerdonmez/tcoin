@@ -10,7 +10,9 @@ Current Transactions | TCoin
             <thead>
                 <th>Receiver</th>
                 <th>Sender</th>
-                <th>Amount (TCoin)</th>
+                <th>Miner</th>
+                <th>Total Amount (TCoin)</th>
+                <th>Transaction Fee (TCoin)</th>
             </thead>
             <tbody>
             {% if transactions != [] %}
@@ -18,7 +20,13 @@ Current Transactions | TCoin
                 <tr>
                     <td>{{tran['receiver']}}</td>
                     <td>{{tran['sender']}}</td>
-                    <td>{{tran['amount']}} TC</td>
+                    {% if tran['tx_fee'] > 0 %}
+                        <td>{{tran['miner']}}</td>
+                    {% else %}
+                        <td>No fee !</td>
+                    {% endif %}
+                    <td>{{tran['input']}} TC</td>
+                    <td>{{tran['input'] - tran['output']}} TC</td>
                 </tr>
                 {% endfor %}
             {% else %}

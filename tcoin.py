@@ -1,10 +1,13 @@
 from blockchain import Blockchain,Block
-from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, session, send_file
+from wallet import Wallet
+from transaction import Transaction
+from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, send_file, Session
 from uuid import uuid4
 import json
 import sys
 import forms
 import requests
+import pickle
 from functools import wraps
 from urllib.parse import urlparse 
 from zipfile import ZipFile
@@ -15,8 +18,10 @@ import os
 
 #Getting the config.json file
 config = None
-config_template = {"protocol_name":"TCOIN_BLOCKCHAIN_NETWORK","miner":"your_miner_adress_or_name","secret_key":"TCOIN_BLOCKCHAIN_NETWORK","node_address":"null"}
+miner_wallet = None # wallet of the current miner
+config_template = {"protocol_name":"TCOIN_BLOCKCHAIN_NETWORK","miner":"your_miner_private_key","secret_key":"TCOIN_BLOCKCHAIN_NETWORK","node_address":"null"}
 # config = {"protocol_name":"TCOIN_BLOCKCHAIN_NETWORK","miner":"your_miner_adress_or_name","secret_key":"TCOIN_BLOCKCHAIN_NETWORK","node_address":"null"}
+cur_wallet = None # current wallet of the current user
 
 config_path = "config.json" #sys.argv[3]
 try:
@@ -27,35 +32,43 @@ except:
     port = 5000
 
 def save_config():
-    with open(config_path,'w') as file:  
+    with open(config_path,'w') as file:
         file.writelines(json.dumps(config, sort_keys=True, indent=4))
 
+#loading config / if theres none creating it
 try:
     with open(config_path,'r') as file:
         loaded_config = json.load(file)
         if config_template == loaded_config:
             raise FileNotFoundError
         config = loaded_config
+        miner_wallet = Wallet(config['miner'].encode())
 except FileNotFoundError:
-    with open(config_path,'w') as file:  
+    with open(config_path,'w') as file:
         file.writelines(json.dumps(config_template, sort_keys=True, indent=4))
-    print("No config file detected or invalid config please fill the config file")
-    input("Press any key to continue...")
+    print("No config file detected. Creating a new one and a new wallet for the miner")
+    # creating the config
+    config = config_template
+    # creating the new wallet
+    miner_wallet = Wallet()
+    # saving the pr key to the config
+    config['miner'] = str(miner_wallet.private_key_ser, 'utf-8')
+    save_config()
+    input("Please relaunch\nPress any key to continue...")
     sys.exit()
 
 app = Flask(__name__)
 
 app.secret_key = config["secret_key"] 
-#creating address for the node
-node_address = str(uuid4()).replace('-','')
 #creating the blockchain with the name from the config file
-blockchain = Blockchain(config['protocol_name'])
+blockchain = Blockchain(config)
 
 def mine_save_block():
     block = blockchain.create_block(index = blockchain.last_block().index + 1,type = 'save_block')
     return block
 
-def broadcast_transaction(tran = None,clear = False):
+# broadcasts the new tx to other nodes
+def broadcast_transaction(tx = None,clear = False):
      # broadcasting the new transaction
     if clear and len(blockchain.nodes) > 1:
         for node in blockchain.chain[-1].nodes:
@@ -65,9 +78,11 @@ def broadcast_transaction(tran = None,clear = False):
     elif len(blockchain.nodes) > 1: 
         for node in blockchain.chain[-1].nodes:
             # avoiding duplicate transaction
+            json = tx.to_dict()
             if node != config['node_address']:
-                requests.post('http://'+node+'/add_transaction',json={"sender": tran[0],"receiver":tran[1],"amount":tran[2]})
+                requests.post('http://'+node+'/add_transaction',json=json)
 
+# checks if the current miner is in the node network
 def node_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -79,6 +94,7 @@ def node_required(f):
             return f(*args, **kwargs)
     return decorated_function
 
+# checks if the blockchain is valid
 def check(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -101,13 +117,11 @@ def mine_block():
     if blockchain.transactions == []:
         flash("No transactions, can't mine the block...","warning")
         return redirect(url_for("index"))
-    # previous_block = blockchain.last_block()
-    # previous_proof = previous_block.proof
-    # proof = blockchain.proof_of_work(previous_proof)
-    # previous_hash = blockchain.last_block().hash
-    # giving miner's gift
-    blockchain.add_transaction(sender = node_address, receiver = config["miner"], amount = 1)
-    # block = blockchain.create_block(proof,previous_hash)
+
+    # giving miner's gift > creating new transaction
+    reward_tx = Transaction(sender = None,input = 10, receiver = miner_wallet.public_key ,output = 10,sig = None, bonus = True)
+    blockchain.add_transaction(reward_tx)
+    
     # broadcasting that the transactions are cleared !!!
     block = blockchain.create_block('transaction_block',blockchain.last_block().index + 1)
     broadcast_transaction(clear=True)
@@ -151,10 +165,21 @@ def is_valid():
 @node_required
 def add_transaction():
     json = request.get_json()
-    transaction_keys = ['sender', 'receiver', 'amount']
+    transaction_keys = ['sender', 'input', 'receiver', 'output']
     if not all (key in json for key in transaction_keys):
         return 'Invalid transaction, some elements are missing !', 400
-    index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'])
+
+    #loading back the new transaction from json file
+    new_tx = Transaction(
+            sender = json['sender'],
+            input = json['input'],
+            receiver = json['receiver'],
+            output = json['output'],
+            miner = json['miner'],
+            tx_fee = json['tx_fee'],
+            sig = json['sig']
+        )
+    index = blockchain.add_transaction(new_tx)
 
     response = {'message':f'This transaction will be added to Block {index}'}
     return  jsonify(response), 201
@@ -212,17 +237,38 @@ def index():
 def send_tcoin():
     form = forms.AddTransaction(request.form)
     if request.method == "GET":
-        return render_template("send_tcoin.html",form = form)
+        return render_template("send_tcoin.html",form = form,sender = Wallet.get_pu_ser(cur_wallet.public_key)[1])
     else:
-        if form.amount.data == None or (not form.amount.data > 0):
+        if form.output.data > form.input.data or (not form.input.data > 0):
             flash('Invalid amount please enter an amount larger than 0...','danger')
             return redirect(url_for("send_tcoin"))
-        
-        index = blockchain.add_transaction(form.sender.data, form.receiver.data, form.amount.data)
 
+        # the sum of the coins that sender gives away
+        input_sender = form.input.data + form.output.data
+        # the sum of the coins that receiver will receive is normal input from the form.input.data
+
+        # form.output.data is the transaction fee so
+        output_receiver = form.input.data # this is the coin that receiver gets
+
+        # sender is the current wallet user >> get the receiver public key from the form
+        addr_join = ("\n" + form.receiver.data.replace(" ","\n") + "\n")
+        addr_join = Wallet.join_ser_text('public',addr_join)
+        receiver_address = Wallet.load_pu(addr_join.encode()) # getting the receiver public key
+        new_tx = Transaction(
+            sender = cur_wallet.public_key,
+            input = input_sender,
+            receiver = receiver_address,
+            output = output_receiver,
+            miner = miner_wallet.public_key
+        )
+        tx_signed = new_tx.sign(cur_wallet) # first checks the balance if there's enough balance >> signs the tx
+        if not tx_signed:
+            flash(f'Not enough coins to send !','warning')
+            return redirect("/send_tcoin")
+        index = blockchain.add_transaction(new_tx)
         # broadcasting the new transaction to other transaction pools on nodes
-        new_transaction = [form.sender.data,form.receiver.data,form.amount.data]
-        broadcast_transaction(new_transaction)
+        # new_transaction = [form.sender.data,form.receiver.data,form.amount.data]
+        broadcast_transaction(new_tx)
 
         flash(f'This transaction will be added to Block {index}','success')
         return redirect("/cur_transactions")
@@ -264,6 +310,37 @@ def join_network():
             flash("Inactive or invalid address ","danger")
             return redirect(url_for("join_network"))
 
+@app.route("/wallet_login", methods = ["GET"])
+@check
+def wallet():
+    w = None
+    try:
+        # looking for an existing wallet
+        with open("wallet.dat","rb") as file:
+            load_w = pickle.load(file)
+            w = Wallet(load = load_w,chain = blockchain.chain)
+    except FileNotFoundError:
+        # creating new wallet
+        w = Wallet(chain = blockchain.chain)
+        with open("wallet.dat","wb") as file:
+            pickle.dump(w.private_key_ser,file)
+    # Session['wallet'] = w.private_key_ser
+    global cur_wallet
+    cur_wallet = w
+    # calculating the coins of the user
+    w.coins = w.calculate_coins(blockchain.chain)
+    return render_template("wallet.html",balance = w.coins,public_key = Wallet.get_pu_ser(w.public_key))
+
+@app.route("/wallet_login_miner", methods = ["GET"])
+@check
+def wallet_miner():
+    w = Wallet(load = config['miner'].encode(),chain = blockchain.chain)
+    global cur_wallet
+    cur_wallet = w
+    # calculating the coins of the user
+    w.coins = w.calculate_coins(blockchain.chain)
+    return render_template("wallet.html",balance = w.coins,public_key = Wallet.get_pu_ser(w.public_key))
+
 @app.route('/download-protocol')
 @check
 def request_zip():
@@ -301,7 +378,6 @@ def show_network():
     nodes = blockchain.nodes
     return render_template("network.html",nodes = nodes)
 
-
 if __name__ == '__main__':
-    app.run(debug=False,host=host,port=port)
+    app.run(debug=True if host == 'localhost' else False,host=host,port=port)
 
