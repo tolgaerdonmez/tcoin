@@ -26,23 +26,32 @@
         <p>Total Transactions: {{block.height}}</p>
         <hr>
         <p><strong>Transactions:</strong></p>
-        <table class="table table-hover table-light">
+    <table class="table table-hover table-light">
             <thead>
                 <th>Receiver</th>
                 <th>Sender</th>
+                <th>Miner</th>
                 <th>Total Amount (TCoin)</th>
                 <th>Transaction Fee (TCoin)</th>
             </thead>
             <tbody>
-            {% for tran in block.transactions %}
+            {% if transactions != [] %}
+                {% for tran in block.transactions %}
                 <tr>
                     <td>{{tran['receiver']}}</td>
                     <td>{{tran['sender']}}</td>
+                    {% if tran['tx_fee'] > 0 %}
+                        <td>{{tran['miner']}}</td>
+                    {% else %}
+                        <td>No fee !</td>
+                    {% endif %}
                     <td>{{tran['input']}} TC</td>
                     <td>{{tran['input'] - tran['output']}} TC</td>
                 </tr>
-            {% endfor %}
-            
+                {% endfor %}
+            {% else %}
+                <p><i>No Current Transactions...</i></p>
+            {% endif %}
             </tbody>
         </table>
     {% else %}

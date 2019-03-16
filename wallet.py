@@ -63,6 +63,8 @@ class Wallet():
                     minus.append(tx['input'])
                 if tx['receiver'] == pu:
                     plus.append(tx['output'])
+                if tx['miner'] == pu:
+                    plus.append(tx['tx_fee'])
         total = sum(plus) - sum(minus)
         return total
 

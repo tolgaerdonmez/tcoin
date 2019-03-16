@@ -172,11 +172,17 @@ def add_transaction():
     if not all (key in json for key in transaction_keys):
         return 'Invalid transaction, some elements are missing !', 400
 
-    #creating new transaction
-    new_tx = Transaction(cur_wallet.public_key, json['input'], miner_wallet.public_key, json['output'])
-    new_tx.sign(cur_wallet)
+    #loading back the new transaction from json file
+    new_tx = Transaction(
+            sender = json['sender'],
+            input = json['input'],
+            receiver = json['receiver'],
+            output = json['output'],
+            miner = json['miner'],
+            tx_fee = json['tx_fee'],
+            sig = json['sig']
+        )
     index = blockchain.add_transaction(new_tx)
-
 
     response = {'message':f'This transaction will be added to Block {index}'}
     return  jsonify(response), 201
@@ -251,7 +257,13 @@ def send_tcoin():
         addr_join = ("\n" + form.receiver.data.replace(" ","\n") + "\n")
         addr_join = Wallet.join_ser_text('public',addr_join)
         receiver_address = Wallet.load_pu(addr_join.encode()) # getting the receiver public key
-        new_tx = Transaction(cur_wallet.public_key, input_sender, receiver_address, output_receiver)
+        new_tx = Transaction(
+            sender = cur_wallet.public_key,
+            input = input_sender,
+            receiver = receiver_address,
+            output = output_receiver,
+            miner = miner_wallet.public_key
+        )
         tx_signed = new_tx.sign(cur_wallet) # first checks the balance if there's enough balance >> signs the tx
         if not tx_signed:
             flash(f'Not enough coins to send !','warning')
