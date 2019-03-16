@@ -60,8 +60,6 @@ except FileNotFoundError:
 app = Flask(__name__)
 
 app.secret_key = config["secret_key"] 
-#creating address for the node
-node_address = str(uuid4()).replace('-','')
 #creating the blockchain with the name from the config file
 blockchain = Blockchain(config)
 
@@ -121,10 +119,9 @@ def mine_block():
         return redirect(url_for("index"))
 
     # giving miner's gift > creating new transaction
-    # HANDLE THIS LATERRRRRRR !!!!!!!!
-        # new_tx = Transaction(None, 5, miner_wallet.public_key, 5)
-        # blockchain.add_transaction(new_tx)
-
+    reward_tx = Transaction(sender = None,input = 10, receiver = miner_wallet.public_key ,output = 10,sig = None, bonus = True)
+    blockchain.add_transaction(reward_tx)
+    
     # broadcasting that the transactions are cleared !!!
     block = blockchain.create_block('transaction_block',blockchain.last_block().index + 1)
     broadcast_transaction(clear=True)
@@ -382,5 +379,5 @@ def show_network():
     return render_template("network.html",nodes = nodes)
 
 if __name__ == '__main__':
-    app.run(debug=False,host=host,port=port)
+    app.run(debug=True if host == 'localhost' else False,host=host,port=port)
 

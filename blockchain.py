@@ -34,6 +34,7 @@ class Block():
         self.nodes = nodes
         self.type = type# transaction_block save_block genesis_block
         self.protocol_name = protocol_name
+   
     def to_dict(self):
         block_dic = {
             'index':self.index,
@@ -76,7 +77,8 @@ class Blockchain:
         self.difficulty = '0000'
         #Loading the blockchain.json if exists 
         self.load_chain_from_json()
-
+        # if this node is currently mining
+        self.mining = False
 
     def load_chain_from_json(self):
         try:
@@ -100,7 +102,7 @@ class Blockchain:
             else:
                 # creating the genesis block 
                 miner_public = Wallet(self.config['miner'].encode()).public_key
-                genesis_tx = Transaction(sender = None,input = 100, receiver = miner_public ,output = 100,sig = None, genesis_tx = True)
+                genesis_tx = Transaction(sender = None,input = 100, receiver = miner_public ,output = 100,sig = None, bonus = True)
                 self.add_transaction(genesis_tx)
                 print(genesis_tx.to_dict())
                 self.create_block(index = 0, proof= 1, previous_hash='0', type = 'genesis_block')
@@ -151,11 +153,15 @@ class Blockchain:
     def last_block(self):
         return self.chain[-1]
 
+    def stop_mining(self):
+        self.mining = False
+
     @timeit
     def proof_of_work(self, block):
+        self.mining = True
         check_proof = False
         proof = 0
-        while check_proof == False:
+        while check_proof == False and self.mining:
             hash_operation = hashlib.sha256(str(block.hash + str(proof)).encode()).hexdigest()
             if hash_operation[:len(self.difficulty)] == self.difficulty:
                 check_proof = True
