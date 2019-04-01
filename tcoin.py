@@ -349,7 +349,7 @@ def request_zip():
     for dirpath,_,filenames in os.walk(base_path):
         if dirpath == '.':
             for file in filenames: 
-                if file != "config.json":
+                if file != "config.json" or file != "download-count.txt":
                     file_list.append("./" + file)
         elif dirpath == "./templates":
             file_list.append('./templates')
@@ -365,6 +365,17 @@ def request_zip():
         for file in file_list:   
             z.write(file)
     data.seek(0)
+
+    with open("download-count.txt","r+",encoding = "utf-8") as file:
+        a = file.readline()
+        count = 0
+        try:
+            count = int(a)
+        except:
+            pass
+        count += 1
+        file.seek(0)
+        file.writelines([str(count)])
 
     return send_file(
         data,

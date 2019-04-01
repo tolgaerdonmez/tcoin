@@ -3,3 +3,4 @@ __pycache__
 blockchain.json
 json_templates
 *.dat
+download-count.txt
