@@ -30,8 +30,14 @@
         <a class="nav-link" href="/wallet_login_miner">Miner Wallet</a>
       </li>
       <li class="nav-item active">
-        <a class="nav-link" href="/wallet_login">User Wallet</a>
+        <a class="nav-link" href="/wallet_login">Wallet Login</a>
       </li>
+      {% if session["logged"] %}
+      <li class="nav-item active">
+        <a class="nav-link" href="/wallet_logout">Wallet Logout</a>
+      </li>
+      {% else %}
+      {% endif %}
     </ul>
     
     <!--<form class="form-inline my-2 my-lg-0">

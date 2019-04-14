@@ -8,3 +8,6 @@ class AddTransaction(Form):
 
 class AddNode(Form):
     address = StringField("Node-Address",validators=[validators.HostnameValidation(require_tld=False,allow_ip=True)])
+
+class WalletLogin(Form):
+    private_key = StringField("Private Key")

@@ -24,12 +24,14 @@ class Wallet():
             key_size=2048,
             backend=default_backend()
         )    
+
         public = private.public_key()
 
         pu_ser = public.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
+
         pr_ser = private.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,

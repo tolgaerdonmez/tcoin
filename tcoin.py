@@ -1,7 +1,7 @@
 from blockchain import Blockchain,Block
 from wallet import Wallet
 from transaction import Transaction
-from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, send_file, Session
+from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, send_file, session
 from uuid import uuid4
 import json
 import sys
@@ -11,7 +11,7 @@ import pickle
 from functools import wraps
 from urllib.parse import urlparse 
 from zipfile import ZipFile
-from io import BytesIO
+from io import BytesIO,StringIO
 from pathlib import Path
 from datetime import datetime
 import os
@@ -237,7 +237,11 @@ def index():
 def send_tcoin():
     form = forms.AddTransaction(request.form)
     if request.method == "GET":
-        return render_template("send_tcoin.html",form = form,sender = Wallet.get_pu_ser(cur_wallet.public_key)[1])
+        if cur_wallet != None:
+            return render_template("send_tcoin.html",form = form,sender = Wallet.get_pu_ser(cur_wallet.public_key)[1])
+        else:
+            flash('Please select a wallet before sending TCOIN','warning')
+            return redirect(url_for("index"))
     else:
         if form.output.data > form.input.data or (not form.input.data > 0):
             flash('Invalid amount please enter an amount larger than 0...','danger')
@@ -310,26 +314,47 @@ def join_network():
             flash("Inactive or invalid address ","danger")
             return redirect(url_for("join_network"))
 
-@app.route("/wallet_login", methods = ["GET"])
-@check
-def wallet():
-    w = None
-    try:
-        # looking for an existing wallet
-        with open("wallet.dat","rb") as file:
-            load_w = pickle.load(file)
-            w = Wallet(load = load_w,chain = blockchain.chain)
-    except FileNotFoundError:
-        # creating new wallet
-        w = Wallet(chain = blockchain.chain)
-        with open("wallet.dat","wb") as file:
-            pickle.dump(w.private_key_ser,file)
-    # Session['wallet'] = w.private_key_ser
+@app.route("/create_new_wallet")
+def create_user_wallet():
+    # creating new wallet
+    w = Wallet(chain = blockchain.chain)
+
+    private_key = StringIO(Wallet.get_pr_ser(w.private_key)[1])
+    pr_file = BytesIO()
+    pr_file.write(private_key.getvalue().encode("utf-8"))
+    pr_file.seek(0)
+    private_key.close()
+
+    return send_file(pr_file,mimetype="text/txt",as_attachment=True,attachment_filename="user_key.txt")
+
+@app.route("/wallet_logout", methods = ["GET"])
+def wallet_logout():
     global cur_wallet
-    cur_wallet = w
-    # calculating the coins of the user
-    w.coins = w.calculate_coins(blockchain.chain)
-    return render_template("wallet.html",balance = w.coins,public_key = Wallet.get_pu_ser(w.public_key))
+    if cur_wallet != None:
+        cur_wallet = None
+    session["logged"] = False
+    return redirect(url_for("index"))
+
+@app.route("/wallet_login", methods = ["GET","POST"])
+@check
+def wallet_login():
+    global cur_wallet
+    form = forms.WalletLogin(request.form)
+    if request.method == "GET":
+        if cur_wallet != None:
+            # calculating the coins of the user
+            cur_wallet.coins = cur_wallet.calculate_coins(blockchain.chain)
+            return render_template("wallet.html",balance = cur_wallet.coins,public_key = Wallet.get_pu_ser(cur_wallet.public_key))
+        else:
+            return render_template("wallet_login.html",form = form)
+    # if method is POST
+    else:
+        key_join = ("\n" + form.private_key.data.replace(" ","\n") + "\n")
+        key_join = Wallet.join_ser_text('private',key_join)
+        cur_wallet = Wallet(load = key_join.encode(),chain = blockchain.chain)
+        session["logged"] = True
+        return redirect(url_for("wallet_login"))
+
 
 @app.route("/wallet_login_miner", methods = ["GET"])
 @check
@@ -339,6 +364,7 @@ def wallet_miner():
     cur_wallet = w
     # calculating the coins of the user
     w.coins = w.calculate_coins(blockchain.chain)
+    session["logged"] = True
     return render_template("wallet.html",balance = w.coins,public_key = Wallet.get_pu_ser(w.public_key))
 
 @app.route('/download-protocol')

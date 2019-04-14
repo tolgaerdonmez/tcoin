@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Wallet Login | TCoin
+{% endblock title %}
+
+{% block body %}
+<h3>Send TCoin</h3>
+<h4>Have an existing wallet ! Just log in !</h4>
+{% from "includes/formhelpers.html" import render_field %}
+<form method = "post">
+    {{ render_field(form.private_key, class = "form-control") }}
+    <button type="submit" class="btn btn-success">Login</button>
+</form>
+<br>
+<h4>Don't have one ! Just click the download button and create your wallet !</h4>
+<a href="/create_new_wallet" target="_blank" class = "btn btn-success">Download Your Wallet</a><br><br>
+{% endblock body %}
