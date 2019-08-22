@@ -3,3 +3,5 @@ __pycache__
 blockchain.json
 json_templates
 *.dat
+venv
+.vscode
