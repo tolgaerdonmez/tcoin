@@ -2,6 +2,7 @@ from blockchain import Blockchain,Block
 from wallet import Wallet
 from transaction import Transaction
 from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, send_file, session
+from flask_cors import CORS
 from uuid import uuid4
 import json
 import sys
@@ -59,6 +60,7 @@ except FileNotFoundError:
 
 app = Flask(__name__)
 
+CORS(app, resources={r'/*': {'origins': '*'}})
 app.secret_key = config["secret_key"] 
 #creating the blockchain with the name from the config file
 blockchain = Blockchain(config)
@@ -338,7 +340,10 @@ def wallet_logout():
 @app.route("/wallet_login", methods = ["GET","POST"])
 @check
 def wallet_login():
-    global cur_wallet
+    try:
+        load, chain = pickle.loads(request.cookies.get('cur_wallet')[0]),
+    except TypeError:
+        cur_wallet = None
     form = forms.WalletLogin(request.form)
     if request.method == "GET":
         if cur_wallet != None:
@@ -353,7 +358,10 @@ def wallet_login():
         key_join = Wallet.join_ser_text('private',key_join)
         cur_wallet = Wallet(load = key_join.encode(),chain = blockchain.chain)
         session["logged"] = True
-        return redirect(url_for("wallet_login"))
+        response = redirect(url_for("wallet_login"))
+        cur_wallet = pickle.dumps(cur_wallet)
+        response.set_cookie("cur_wallet",cur_wallet)
+        return response
 
 
 @app.route("/wallet_login_miner", methods = ["GET"])
